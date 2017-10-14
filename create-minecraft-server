@@ -1,0 +1,79 @@
+#!/bin/bash
+#
+# Simple script to create a minecraft server using a zip of server files
+# for a specific server name.
+# The new directory will contain the server files and belong to the minecraft
+# group.
+# Will also create the init script for a given server.
+#
+
+script_name=`basename $0`
+server_name=$2
+server_location=$3
+
+minecraft_user=`grep minecraft /etc/passwd | cut -d: -f1`
+url_regex="^(http:|https:)\/\/.?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$"
+
+create() {
+  if [ -z "$server_name" ] || [ -z "$server_location" ]; then
+    echo "Did not specify <server-name> and/or <server-zip-location>"
+    show_usage
+    exit 1
+  fi
+
+  if [[ ! $server_location =~ $url_regex ]]; then
+    echo
+    echo "<server-zip-location> is not a URL"
+    echo
+    exit 1
+  fi
+
+  mkdir tmp
+  wget -O tmp/$server_name.zip $server_location
+  unzip tmp/$server_name.zip -d $server_name
+
+  echo "(Requires sudo)"
+  sudo chgrp -R minecraft $server_name
+  sudo chmod -R g+w $server_name
+
+  rm -rf tmp
+}
+
+init_script() {
+  echo "Init script"
+}
+
+show_usage() {
+  echo
+  echo "Usage:"
+  echo "  $script_name create <server-name> <server-zip-location>"
+  echo "  $script_name init-script <server-name>"
+  echo
+}
+
+if [ -z "$minecraft_user" ]; then
+  echo
+  echo "********************************************************"
+  echo "* Cannot run script without minecraft user.            *"
+  echo "* Please run 'create-minecraft-user' script first.     *"
+  echo "********************************************************"
+  echo
+  exit 2
+fi
+
+case "$1" in
+  create)
+    create;
+  ;;
+  init-script)
+    init_script;
+  ;;
+  *)
+    show_usage;
+  ;;
+esac
+
+echo
+echo "Done."
+echo
+exit 0

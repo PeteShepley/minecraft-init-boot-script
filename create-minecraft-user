@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# Simple script to create a minecraft user for the system.
+#
+
+minecraft_user=`grep minecraft /etc/passwd | cut -d: -f1`
+
+if [ -n "$minecraft_user" ]; then
+  echo
+  echo "*************************************************"
+  echo "* You already have a minecraft user.            *"
+  echo "*************************************************"
+  echo
+  exit 0
+fi
+
+echo "You will need to supply your sudo password. (Requires sudo)"
+
+sudo useradd -d /home/minecraft -m -r minecraft
+
+echo "'minecraft' user created."
+echo
+echo "If you need to add users to the minecraft group:"
+echo "  Run 'sudo usermod -aG minecraft <username>'"
+echo
+
+exit 0
