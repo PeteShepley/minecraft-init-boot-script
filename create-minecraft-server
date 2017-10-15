@@ -10,16 +10,30 @@
 script_name=`basename $0`
 server_name=$2
 server_location=$3
+server_dir=/home/minecraft/$server_name
+escaped_server_dir=`echo $server_dir | sed s/\\\\\//\\\\\\\\\\\//g`
 
 minecraft_user=`grep minecraft /etc/passwd | cut -d: -f1`
 url_regex="^(http:|https:)\/\/.?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$"
 
-create() {
-  if [ -z "$server_name" ] || [ -z "$server_location" ]; then
-    echo "Did not specify <server-name> and/or <server-zip-location>"
+check_server_name() {
+  if [ -z "$server_name" ]; then
+    echo "Did not specify <server-name>."
     show_usage
     exit 1
   fi
+}
+
+check_server_location() {
+  if [ -z "$server_location" ]; then
+    echo "Did not specify <server-zip-location>."
+    show_usage
+    exit 1
+  fi
+}
+
+create() {
+  check_server_name; check_server_location;
 
   if [[ ! $server_location =~ $url_regex ]]; then
     echo
@@ -30,7 +44,7 @@ create() {
 
   mkdir tmp
   wget -O tmp/$server_name.zip $server_location
-  unzip tmp/$server_name.zip -d $server_name
+  unzip tmp/$server_name.zip -d $server_dir
 
   echo "(Requires sudo)"
   sudo chgrp -R minecraft $server_name
@@ -40,7 +54,27 @@ create() {
 }
 
 init_script() {
-  echo "Init script"
+  check_server_name;
+  # using fhd's System V init template for a starter script
+  template_url=https://raw.githubusercontent.com/fhd/init-script-template/master/template
+  mkdir tmp
+  wget -O tmp/init-template $template_url
+
+  # Run replacements for directory, command, and user for the init script
+  sed s/dir=\"\"/dir=\"$escaped_server_dir\"/ tmp/init-template > tmp/init-template2
+  sed s/cmd=\"\"/cmd=\"\"/ tmp/init-template2 > tmp/init-template3
+  sed s/user=\"\"/user=\"minecraft\"/ tmp/init-template3 > tmp/init-template4
+
+  sudo cp tmp/init-template4 /etc/init.d/$server_name
+  rm -rf tmp
+
+  echo
+  echo "****************************************"
+  echo "* Init script has been written         *"
+  echo "* Use: sudo service $server_name start *"
+  echo "*      for testing.                    *"
+  echo "****************************************"
+  echo
 }
 
 show_usage() {
@@ -58,9 +92,10 @@ if [ -z "$minecraft_user" ]; then
   echo "* Please run 'create-minecraft-user' script first.     *"
   echo "********************************************************"
   echo
-  exit 2
+  # exit 2
 fi
 
+# Process command line options
 case "$1" in
   create)
     create;
